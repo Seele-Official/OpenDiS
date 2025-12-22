@@ -1,0 +1,29 @@
+package:
+  name: pydis
+  version: "1.0"
+
+source:
+  path: .
+
+build:
+  number: 0
+  script: python setup.py
+
+requirements:
+  host:
+    - python
+  run:
+    - python
+    - numpy
+    - matplotlib
+  
+test:
+  imports:
+    - pydis    
+    - pydis_lib
+  script: python -c "import pydis; import pydis_lib; print('pydis and pydis_lib imported successfully')"
+
+about:
+  home: https://github.com/OpenDiS/OpenDiS
+  license: BSD-3
+  summary: "A local build of PyDis library"

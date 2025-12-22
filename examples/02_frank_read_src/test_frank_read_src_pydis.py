@@ -1,11 +1,7 @@
 import numpy as np
 import sys, os
 
-pydis_paths = ['../../python', '../../lib', '../../core/pydis/python']
-[sys.path.append(os.path.abspath(path)) for path in pydis_paths if not path in sys.path]
-np.set_printoptions(threshold=20, edgeitems=5)
-
-from framework.disnet_manager import DisNetManager
+from pydis.framework.disnet_manager import DisNetManager
 from pydis import DisNode, DisNet, Cell, CellList
 from pydis import CalForce, MobilityLaw, TimeIntegration, Topology
 from pydis import Collision, Remesh, VisualizeNetwork, SimulateNetwork
