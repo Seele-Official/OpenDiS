@@ -1,9 +1,21 @@
-__pycache__
-.vscode
+__pycache__/
+*.pyc
+.pytest_cache/
+.vscode/
 *.o
-build
+build/
 cmake/sys.cmake.ext
 *.png
 *.dat
 *.txt
 *.data
+
+# Local runtime outputs
+output/
+test_loop_results/
+
+# Local helper files
+.codex
+
+# Built extension artifacts
+core/exadis/python/*.so
