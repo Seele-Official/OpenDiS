@@ -51,14 +51,20 @@ Two packaging files were added at the repository root:
 - [setup.py](/home/seele/OpenDiS/setup.py)
 - [meta.yaml](/home/seele/OpenDiS/meta.yaml)
 
-`setup.py` is not a normal setuptools build. It is a small installer script that:
+`setup.py` is not a normal setuptools build. It is a local packaging entry point that:
 
-1. finds a target `site-packages` directory, optionally using `SP_DIR`
-2. copies `build/install/pydis_lib/pydis_lib.py` to `site-packages/pydis_lib/__init__.py`
-3. copies `build/install/pydis_lib/libpydis.so` to `site-packages/pydis_lib/libpydis.so`
-4. copies the repository `pydis/` tree to `site-packages/pydis/`
+1. chooses a CMake build directory from `PYDIS_BUILD_DIR`, defaulting to `build/`
+2. configures CMake for that build directory
+3. builds the native targets
+4. runs `cmake --install` for that build directory
+5. reads `CMAKE_INSTALL_PREFIX` from the build directory's `CMakeCache.txt`
+6. copies `<install-prefix>/pydis_lib/pydis_lib.py` to `site-packages/pydis_lib/__init__.py`
+7. copies `<install-prefix>/pydis_lib/libpydis.so` to `site-packages/pydis_lib/libpydis.so`
+8. copies the repository `pydis/` tree to `site-packages/pydis/`
 
-`meta.yaml` wraps that installer for conda, but it assumes the C/C++ build products already exist in `build/install/`.
+It defaults to `gcc-14/g++-14` when they are available locally and `CC`/`CXX` are not already set.
+
+`meta.yaml` wraps the same entry point, so the CMake build is now driven from the packaging step itself.
 
 ### CMake Structure
 
@@ -69,7 +75,7 @@ Current state:
 
 - the source tree remains under `core/pydis/`
 - top-level [CMakeLists.txt](/home/seele/OpenDiS/CMakeLists.txt) still builds `core/pydis`
-- the install output lands in `build/install/pydis_lib/`
+- the default install output lands under the chosen build directory, for example `build/install/pydis_lib/`
 
 That means the naming split is intentional:
 
@@ -97,24 +103,9 @@ That change is consistent with the packaging refactor and should be kept.
 
 ## Current Packaging Flow
 
-The current packaging flow is a two-stage process.
+The current packaging flow is a single local entry point driven by `setup.py`.
 
-### 1. Build Native Artifacts
-
-Configure and build:
-
-```bash
-cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
-cmake --build build -j
-cmake --install build
-```
-
-After this, the key artifacts should exist:
-
-- `build/install/pydis_lib/pydis_lib.py`
-- `build/install/pydis_lib/libpydis.so`
-
-### 2. Install or Package Python Pieces
+### 1. Install Into A Python Environment
 
 To install into a specific Python environment, point `SP_DIR` at its `site-packages`:
 
@@ -122,9 +113,22 @@ To install into a specific Python environment, point `SP_DIR` at its `site-packa
 SP_DIR=$CONDA_PREFIX/lib/python3.13/site-packages python setup.py
 ```
 
+By default, `setup.py` will:
+
+- use `build/` as the CMake build directory
+- configure CMake with `Release`
+- prefer `gcc-14/g++-14` if `CC` and `CXX` are not set
+- build, install, and then copy the Python package files
+
+To use a different build directory:
+
+```bash
+PYDIS_BUILD_DIR=build-gcc14 SP_DIR=$CONDA_PREFIX/lib/python3.13/site-packages python setup.py
+```
+
 If `SP_DIR` is not set, `setup.py` uses Python's default `site.getsitepackages()`.
 
-### 3. Build A Conda Package
+### 2. Build A Conda Package
 
 If using conda-build:
 
@@ -132,15 +136,15 @@ If using conda-build:
 conda build .
 ```
 
-Important caveat: the current [meta.yaml](/home/seele/OpenDiS/meta.yaml) does not build the native library itself.
-It expects the native artifacts from the CMake step to already exist under `build/install/`.
+This still targets local packaging, but it no longer assumes a manual CMake step happened earlier.
 
 ## Practical Interpretation
 
-The refactor did not convert the project into a self-contained Python package build.
-It added a local packaging layer on top of the existing CMake build:
+The refactor still does not convert the project into a standard Python package build.
+It keeps a local packaging layer on top of the existing CMake build:
 
-- CMake builds native code and installs files into `build/install/`
+- `setup.py` drives CMake configure/build/install for a selected build directory
+- `setup.py` reads the install prefix from that concrete build directory
 - `setup.py` copies those installed files into Python's package directory
 - `meta.yaml` delegates to `setup.py`
 
@@ -150,4 +154,4 @@ It is this contract:
 - keep the top-level `pydis/` package layout
 - keep `setup.py`
 - keep `meta.yaml`
-- keep the assumption that `build/install/pydis_lib/` is populated before packaging
+- keep the assumption that packaging is driven from a concrete CMake build directory and its install prefix

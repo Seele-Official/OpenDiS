@@ -12,6 +12,7 @@ build:
 requirements:
   host:
     - python
+    - cmake
   run:
     - python
     - numpy
